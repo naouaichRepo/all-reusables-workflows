@@ -1,0 +1,12 @@
+name: Run security Gate
+
+on:
+  workflow_call
+
+jobs:
+  sast_scan:
+    uses: naouaichRepo/all-reusables-workflows/.github/workflows/security-reusable-sast-scan.yml@v1
+  sca_scan:
+    uses: naouaichRepo/all-reusables-workflows/.github/workflows/security-reusable-sca-scan.yml@v1
+
+    
