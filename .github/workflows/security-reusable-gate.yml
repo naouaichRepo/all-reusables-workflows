@@ -37,11 +37,11 @@ on:
 
 jobs:
   sast_scan:
-    uses: naouaichRepo/all-reusables-workflows/.github/workflows/security-reusable-sast-scan.yml@v1
+    uses: naouaichRepo/all-reusables-workflows/.github/workflows/security-reusable-sast-scan.yml@v2
     with:
       security-level: ${{ inputs.security-level }}
       is-blocking: ${{ inputs.is-blocking }}
   sca_scan:
-    uses: naouaichRepo/all-reusables-workflows/.github/workflows/security-reusable-sca-scan.yml@v1
+    uses: naouaichRepo/all-reusables-workflows/.github/workflows/security-reusable-sca-scan.yml@v2
 
     
