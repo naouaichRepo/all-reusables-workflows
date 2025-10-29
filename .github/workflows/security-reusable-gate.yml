@@ -1,11 +1,46 @@
 name: Run security Gate
 
 on:
-  workflow_call
+  workflow_call:
+    inputs:
+      is-blocking:
+          description: |
+            Determines whether the workflow should block execution if vulnerabilities are found.
+            Set to "false" to allow the workflow to continue despite detected vulnerabilities.
+            Example:
+              is-blocking: true || is-blocking: false
+          required: false
+          type: boolean
+          default: true
+
+      security-level:
+        description: |
+          Severities of vulnerabilities to scan and display:
+
+          For a minimal security level, remove at least the highest severity vulnerabilities from your codebase.
+          For a maximal security level, eliminate all vulnerabilities.
+
+          This choice should be guided by the CIA triad (Confidentiality, Integrity, Availability)
+          based on your product’s risk assessment.
+
+          By default, you can start with MIN to identify the most critical vulnerabilities.
+          The workflow operates with three security levels:
+            •	MAX → Detects all vulnerabilities
+            •	MEDIUM → Detects HIGH and MEDIUM vulnerabilities
+            •	MIN → Detects only HIGH vulnerabilities
+
+          Example:
+            security-level: MAX || security-level: MEDIUM || security-level: MIN
+        required: false
+        type: string
+        default: "MAX"
 
 jobs:
   sast_scan:
     uses: naouaichRepo/all-reusables-workflows/.github/workflows/security-reusable-sast-scan.yml@v1
+    with:
+      security-level: ${{ inputs.security-level }}
+      is-blocking: ${{ inputs.is-blocking }}
   sca_scan:
     uses: naouaichRepo/all-reusables-workflows/.github/workflows/security-reusable-sca-scan.yml@v1
 

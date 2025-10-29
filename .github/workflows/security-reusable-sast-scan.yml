@@ -1,7 +1,39 @@
 name: Security SAST scan
 
 on:
-  workflow_call
+  workflow_call:
+    inputs:
+      is-blocking:
+          description: |
+            Determines whether the workflow should block execution if vulnerabilities are found.
+            Set to "false" to allow the workflow to continue despite detected vulnerabilities.
+            Example:
+              is-blocking: true || is-blocking: false
+          required: false
+          type: boolean
+          default: true
+
+      security-level:
+        description: |
+          Severities of vulnerabilities to scan and display:
+
+          For a minimal security level, remove at least the highest severity vulnerabilities from your codebase.
+          For a maximal security level, eliminate all vulnerabilities.
+
+          This choice should be guided by the CIA triad (Confidentiality, Integrity, Availability)
+          based on your product’s risk assessment.
+
+          By default, you can start with MIN to identify the most critical vulnerabilities.
+          The workflow operates with three security levels:
+            •	MAX → Detects all vulnerabilities
+            •	MEDIUM → Detects HIGH and MEDIUM vulnerabilities
+            •	MIN → Detects only HIGH vulnerabilities
+
+          Example:
+            security-level: MAX || security-level: MEDIUM || security-level: MIN
+        required: false
+        type: string
+        default: "MAX"
 
 jobs:
   semgrep: 
@@ -42,10 +74,35 @@ jobs:
       - name: 🆔 Generate unique and random string for unique file naming
         run: echo "UNIQ_STR=$(head /dev/urandom | tr -dc 'a-zA-Z0-9' | head -c 30)" >> "$GITHUB_ENV"
 
-      - name: Run semgrep for scan high vulnerabilities levels and add severity result in report
+      - name: 🚀🪲 Run semgrep for scan low vulnerabilities levels and add severity result in report
+        continue-on-error: ${{ ! (inputs.is-blocking == true) }}
+        if: ${{ contains(fromJson('["MAX"]'), inputs.security-level) }}
         run: |
-          semgrep --config=auto . --severity=ERROR \
-            --sarif --sarif-output="output-${UNIQ_STR}.json" 
+          semgrep --config=auto . \
+            --sarif --sarif-output="output-${UNIQ_STR}-info.json" --severity=INFO
+
+          jq '.runs[].results[] |= (.properties["security-severity"] = "1.0")' \
+            "output-${UNIQ_STR}-info.json" > "output-${UNIQ_STR}-info.sarif"
+
+      - name: 🚀🪲🪲 Run semgrep for scan medium vulnerabilities levels and add severity result in report
+        continue-on-error: ${{ ! (inputs.is-blocking == true) }}
+        if: ${{ contains(fromJson('["MAX", "MEDIUM"]'), inputs.security-level) }}
+        run: |
+          semgrep --config=auto . \
+            --sarif --sarif-output="output-${UNIQ_STR}-warning.json" --severity=WARNING
+
+          jq '.runs[].results[] |= (.properties["security-severity"] = "5.0")' \
+            "output-${UNIQ_STR}-warning.json" > "output-${UNIQ_STR}-warning.sarif"
+
+      - name: 🚀🪲🪲🪲 Run semgrep for scan high vulnerabilities levels and add severity result in report
+        continue-on-error: ${{ ! (inputs.is-blocking == true) }}
+        if: ${{ contains(fromJson('["MAX", "MEDIUM", "MIN"]'), inputs.security-level) }}
+        run: |
+          semgrep --config=auto . \
+            --sarif --sarif-output="output-${UNIQ_STR}-error.json" --severity=ERROR
+
+          jq '.runs[].results[] |= (.properties["security-severity"] = "7.0")' \
+            "output-${UNIQ_STR}-error.json" > "output-${UNIQ_STR}-error.sarif"
       
       - name: 🔄 Count and store vuln
         run: |
@@ -58,7 +115,12 @@ jobs:
         run: |
           if [ "${VULN_COUNT}" -gt 0 ]; then
             echo "❌ ${VULN_COUNT} vulnérabilités détectées. CI bloquée."
-            exit 1
           else
             echo "✅ Aucune vulnérabilité détectée. CI validée."
           fi
+      
+      - name: PASS or FAIL
+        if: ${{ inputs.is-blocking == true }}
+        run: |
+          if [ "${VULN_COUNT}" -gt 0 ]; then
+            exit 1
