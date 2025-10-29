@@ -104,23 +104,26 @@ jobs:
           jq '.runs[].results[] |= (.properties["security-severity"] = "7.0")' \
             "output-${UNIQ_STR}-error.json" > "output-${UNIQ_STR}-error.sarif"
       
-      - name: 🔄 Count and store vuln
-        run: |
-          jq '.runs[0].results | length' output-${UNIQ_STR}.json > vuln_count.txt
-          VULN_COUNT=$(cat ./vuln_count.txt)
-          echo "Nombre de vulnérabilités détectées : $VULN_COUNT"
-          echo "VULN_COUNT=$VULN_COUNT" >> $GITHUB_ENV
 
       - name: ✅ Vérification du résultat de l’analyse
         run: |
-          if [ "${VULN_COUNT}" -gt 0 ]; then
-            echo "❌ ${VULN_COUNT} vulnérabilités détectées. CI bloquée."
+          # Vérifie et compte les vulnérabilités pour chaque niveau de sévérité
+          INFO=$( [ -f "output-${UNIQ_STR}-info.sarif" ] && jq '.runs[0].results | length' "output-${UNIQ_STR}-info.sarif" || echo 0 )
+          WARNING=$( [ -f "output-${UNIQ_STR}-warning.sarif" ] && jq '.runs[0].results | length' "output-${UNIQ_STR}-warning.sarif" || echo 0 )
+          ERROR=$( [ -f "output-${UNIQ_STR}-error.sarif" ] && jq '.runs[0].results | length' "output-${UNIQ_STR}-error.sarif" || echo 0 )
+
+          # Calcule le total
+          VULN_COUNT=$((INFO + WARNING + ERROR))
+
+          echo "ℹ️ Vulnérabilités info : $INFO"
+          echo "⚠️ Vulnérabilités warning : $WARNING"
+          echo "❌ Vulnérabilités critiques : $ERROR"
+          echo "🔢 Total : $VULN_COUNT"
+
+          # Condition de validation du pipeline
+          if [ "$VULN_COUNT" -gt 0 ]; then
+            echo "❌ $VULN_COUNT vulnérabilités détectées. CI bloquée."
+            exit 1
           else
             echo "✅ Aucune vulnérabilité détectée. CI validée."
           fi
-      
-      - name: PASS or FAIL
-        if: ${{ inputs.is-blocking == true }}
-        run: |
-          if [ "${VULN_COUNT}" -gt 0 ]; then
-            exit 1
