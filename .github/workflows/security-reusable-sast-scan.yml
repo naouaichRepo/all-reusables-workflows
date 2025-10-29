@@ -104,26 +104,20 @@ jobs:
           jq '.runs[].results[] |= (.properties["security-severity"] = "7.0")' \
             "output-${UNIQ_STR}-error.json" > "output-${UNIQ_STR}-error.sarif"
       
+      - name: ⬆️ Upload Semgrep file as SARIF to GitHub Advanced Security error
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "output-${UNIQ_STR}-error.json"
+          category: semgrep-sast-analysis-error
 
-      - name: ✅ Vérification du résultat de l’analyse
-        run: |
-          # Vérifie et compte les vulnérabilités pour chaque niveau de sévérité
-          INFO=$( [ -f "output-${UNIQ_STR}-info.sarif" ] && jq '.runs[0].results | length' "output-${UNIQ_STR}-info.sarif" || echo 0 )
-          WARNING=$( [ -f "output-${UNIQ_STR}-warning.sarif" ] && jq '.runs[0].results | length' "output-${UNIQ_STR}-warning.sarif" || echo 0 )
-          ERROR=$( [ -f "output-${UNIQ_STR}-error.sarif" ] && jq '.runs[0].results | length' "output-${UNIQ_STR}-error.sarif" || echo 0 )
+      - name: ⬆️ Upload Semgrep file as SARIF to GitHub Advanced Security warning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "output-${UNIQ_STR}-warning.json"
+          category: semgrep-sast-analysis-warning
 
-          # Calcule le total
-          VULN_COUNT=$((INFO + WARNING + ERROR))
-
-          echo "ℹ️ Vulnérabilités info : $INFO"
-          echo "⚠️ Vulnérabilités warning : $WARNING"
-          echo "❌ Vulnérabilités critiques : $ERROR"
-          echo "🔢 Total : $VULN_COUNT"
-
-          # Condition de validation du pipeline
-          if [ "$VULN_COUNT" -gt 0 ]; then
-            echo "❌ $VULN_COUNT vulnérabilités détectées. CI bloquée."
-            exit 1
-          else
-            echo "✅ Aucune vulnérabilité détectée. CI validée."
-          fi
+      - name: ⬆️ Upload Semgrep file as SARIF to GitHub Advanced Security info
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: "output-${UNIQ_STR}-warning.json"
+          category: semgrep-sast-analysis-info
